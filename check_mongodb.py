@@ -315,10 +315,10 @@ def mongo_connect(host=None, port=None, ssl=False, user=None, passwd=None, repli
                 con = pymongo.Connection(host, port, slave_okay=True, network_timeout=10)
 
         try:
-          result = con.admin.command("ismaster")
+            result = con.admin.command("ismaster")
         except ConnectionFailure:
-          print("CRITICAL - Connection to Mongo server on %s:%s has failed" % (host, port) )
-          sys.exit(2)
+            print("CRITICAL - Connection to Mongo server on %s:%s has failed" % (host, port) )
+            sys.exit(2)
 
         if 'arbiterOnly' in result and result['arbiterOnly'] == True:
             print "OK - State: 7 (Arbiter on port %s)" % (port)
@@ -327,9 +327,16 @@ def mongo_connect(host=None, port=None, ssl=False, user=None, passwd=None, repli
         if user and passwd:
             db = con[authdb]
             try:
-              db.authenticate(user, password=passwd)
+                db.authenticate(user, password=passwd)
             except PyMongoError:
                 sys.exit("Username/Password incorrect")
+        ## making assumptions here that since we have a cert we are using x509
+        elif ssl_cert:
+            try:
+                db = con["$external"]
+                db.authenticate(mechanism="MONGODB-X509")
+            except PyMongoError:
+                sys.exit("Unable to auth with client cert")
 
         # Ping to check that the server is responding.
         con.admin.command("ping")
